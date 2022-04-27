@@ -82,7 +82,7 @@ chmod +x download_dataset.sh
 For training, please excute following commands:
 
 ```python
-python main.py
+python main.py --gpus 0,1,2,3
 ```
 
 For inference, please check the inference demo noteook.
