@@ -5,9 +5,9 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-<!--   <a href="https://github.com/zijzhao1996">
-    <img src="images/logo.png" alt="Logo" width="240" height="180">
-  </a> -->
+ <a href="https://github.com/zijzhao1996">
+    <img src="images/logo.png" alt="Logo" width="640" height="240">
+  </a>
 
 <h3 align="center">Scene Segmentation (S2)</h3>
 
