@@ -12,3 +12,8 @@ def createDeepLabv3(outputchannels=1, keep_feature_extract=False, use_pretrained
     model_deeplabv3.classifier = models.segmentation.deeplabv3.DeepLabHead(2048, outputchannels)
 
     return model_deeplabv3
+
+
+# model = createDeepLabv3(outputchannels=150, keep_feature_extract=True, use_pretrained=True)
+# for param in model.parameters():
+#     print(param.shape, param.requires_grad)

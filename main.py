@@ -269,7 +269,7 @@ def patch_replication_callback(data_parallel):
     data_parallel.replicate = new_replicate
 
 
-def main(gpus):
+def main(gpus, checkpoint=False):
     gpus = [0]
     DATASET = {'root_dataset': "./data/", 
               'list_train': "./data/training.odgt",
@@ -307,7 +307,10 @@ def main(gpus):
         patch_replication_callback(segmentation_module)
 
     # Set up optimizers
-    segmentation_module = createDeepLabv3(outputchannels=150)
+    if checkpoint:
+        segmentation_module = checkpoint
+    else: 
+        segmentation_module = createDeepLabv3(outputchannels=150, keep_feature_extract=True, use_pretrained=True)
     optimizers = torch.optim.Adam(segmentation_module.parameters(), lr=1e-4)
     criterion = nn.CrossEntropyLoss(ignore_index=-1)
     segmentation_module.cuda()
@@ -315,7 +318,7 @@ def main(gpus):
     # Main loop
     history = {'train': {'epoch': [], 'loss': [], 'acc': []}}
 
-    for epoch in range(0, 1):
+    for epoch in range(0, 3):
         train(segmentation_module, iterator_train, optimizers, criterion, history, epoch+1)
 
         # checkpointing
@@ -368,20 +371,20 @@ if __name__ == '__main__':
         help="gpus to use, e.g. 0-3 or 0,1,2,3"
     )
     args = parser.parse_args()
+    # Start from checkpoint
+    start_epoch = 1
+    if start_epoch > 0:
+        path = os.path.join(
+            DIR, 'model_epoch_{}.pth'.format(start_epoch))
+        print('Load checkpoint model {}'.format(start_epoch))
+        model = createDeepLabv3(outputchannels=150, keep_feature_extract=True, use_pretrained=True)
+        model.load_state_dict(torch.load(path))
+        assert os.path.exists(path), "checkpoint does not exitst!"
     # Parse gpu ids
     gpus = parse_devices(args.gpus)
     gpus = [x.replace('gpu', '') for x in gpus]
     gpus = [int(x) for x in gpus]
     num_gpus = len(gpus)
     
-    main(gpus)
+    main(gpus, model)
 
-    # Start from checkpoint
-    # start_epoch = 0
-    # if start_epoch > 0:
-    #     cfg.MODEL.weights_encoder = os.path.join(
-    #         cfg.DIR, 'encoder_epoch_{}.pth'.format(start_epoch))
-    #     cfg.MODEL.weights_decoder = os.path.join(
-    #         cfg.DIR, 'decoder_epoch_{}.pth'.format(start_epoch))
-    #     assert os.path.exists(cfg.MODEL.weights_encoder) and \
-    #         os.path.exists(cfg.MODEL.weights_decoder), "checkpoint does not exitst!"
