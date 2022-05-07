@@ -1,7 +1,8 @@
 import re
 import numpy as np
 import functools
-
+import torch.nn as nn
+from torch.nn.parallel.data_parallel import DataParallel
 
 def unique(ar, return_index=False, return_inverse=False, return_counts=False):
     ar = np.asanyarray(ar).flatten()
@@ -134,3 +135,165 @@ def parse_devices(input_devices):
             raise NotSupportedCliException(
                 'Can not recognize device: "{}"'.format(d))
     return ret
+
+
+
+############## Data parallel ##################
+def async_copy_to(obj, dev, main_stream=None):
+    if torch.is_tensor(obj):
+        v = obj.cuda(dev, non_blocking=True)
+        if main_stream is not None:
+            v.data.record_stream(main_stream)
+        return v
+    elif isinstance(obj, collections.Mapping):
+        return {k: async_copy_to(o, dev, main_stream) for k, o in obj.items()}
+    elif isinstance(obj, collections.Sequence):
+        return [async_copy_to(o, dev, main_stream) for o in obj]
+    else:
+        return obj
+
+
+def dict_gather(outputs, target_device, dim=0):
+    """
+    Gathers variables from different GPUs on a specified device
+      (-1 means the CPU), with dictionary support.
+    """
+    def gather_map(outputs):
+        out = outputs[0]
+        if torch.is_tensor(out):
+            # MJY(20180330) HACK:: force nr_dims > 0
+            if out.dim() == 0:
+                outputs = [o.unsqueeze(0) for o in outputs]
+            return Gather.apply(target_device, dim, *outputs)
+        elif out is None:
+            return None
+        elif isinstance(out, collections.Mapping):
+            return {k: gather_map([o[k] for o in outputs]) for k in out}
+        elif isinstance(out, collections.Sequence):
+            return type(out)(map(gather_map, zip(*outputs)))
+    return gather_map(outputs)
+
+
+class DictGatherDataParallel(nn.DataParallel):
+    def gather(self, outputs, output_device):
+        return dict_gather(outputs, output_device, dim=self.dim)
+
+
+class UserScatteredDataParallel(DictGatherDataParallel):
+    def scatter(self, inputs, kwargs, device_ids):
+        assert len(inputs) == 1
+        inputs = inputs[0]
+        inputs = _async_copy_stream(inputs, device_ids)
+        inputs = [[i] for i in inputs]
+        assert len(kwargs) == 0
+        kwargs = [{} for _ in range(len(inputs))]
+
+        return inputs, kwargs
+
+
+def user_scattered_collate(batch):
+    return batch
+
+
+def _async_copy(inputs, device_ids):
+    nr_devs = len(device_ids)
+    assert type(inputs) in (tuple, list)
+    assert len(inputs) == nr_devs
+
+    outputs = []
+    for i, dev in zip(inputs, device_ids):
+        with cuda.device(dev):
+            outputs.append(async_copy_to(i, dev))
+
+    return tuple(outputs)
+
+
+def _async_copy_stream(inputs, device_ids):
+    nr_devs = len(device_ids)
+    assert type(inputs) in (tuple, list)
+    assert len(inputs) == nr_devs
+
+    outputs = []
+    streams = [_get_stream(d) for d in device_ids]
+    for i, dev, stream in zip(inputs, device_ids, streams):
+        with cuda.device(dev):
+            main_stream = cuda.current_stream()
+            with cuda.stream(stream):
+                outputs.append(async_copy_to(i, dev, main_stream=main_stream))
+            main_stream.wait_stream(stream)
+
+    return outputs
+
+##################### Replicate #########################
+class CallbackContext(object):
+    pass
+
+
+def execute_replication_callbacks(modules):
+    """
+    Execute an replication callback `__data_parallel_replicate__` on each module created by original replication.
+
+    The callback will be invoked with arguments `__data_parallel_replicate__(ctx, copy_id)`
+
+    Note that, as all modules are isomorphism, we assign each sub-module with a context
+    (shared among multiple copies of this module on different devices).
+    Through this context, different copies can share some information.
+
+    We guarantee that the callback on the master copy (the first copy) will be called ahead of calling the callback
+    of any slave copies.
+    """
+    master_copy = modules[0]
+    nr_modules = len(list(master_copy.modules()))
+    ctxs = [CallbackContext() for _ in range(nr_modules)]
+
+    for i, module in enumerate(modules):
+        for j, m in enumerate(module.modules()):
+            if hasattr(m, '__data_parallel_replicate__'):
+                m.__data_parallel_replicate__(ctxs[j], i)
+
+
+class DataParallelWithCallback(DataParallel):
+    """
+    Data Parallel with a replication callback.
+
+    An replication callback `__data_parallel_replicate__` of each module will be invoked after being created by
+    original `replicate` function.
+    The callback will be invoked with arguments `__data_parallel_replicate__(ctx, copy_id)`
+
+    Examples:
+        > sync_bn = SynchronizedBatchNorm1d(10, eps=1e-5, affine=False)
+        > sync_bn = DataParallelWithCallback(sync_bn, device_ids=[0, 1])
+        # sync_bn.__data_parallel_replicate__ will be invoked.
+    """
+
+    def replicate(self, module, device_ids):
+        modules = super(DataParallelWithCallback, self).replicate(module, device_ids)
+        execute_replication_callbacks(modules)
+        return modules
+
+
+def patch_replication_callback(data_parallel):
+    """
+    Monkey-patch an existing `DataParallel` object. Add the replication callback.
+    Useful when you have customized `DataParallel` implementation.
+
+    Examples:
+        > sync_bn = SynchronizedBatchNorm1d(10, eps=1e-5, affine=False)
+        > sync_bn = DataParallel(sync_bn, device_ids=[0, 1])
+        > patch_replication_callback(sync_bn)
+        # this is equivalent to
+        > sync_bn = SynchronizedBatchNorm1d(10, eps=1e-5, affine=False)
+        > sync_bn = DataParallelWithCallback(sync_bn, device_ids=[0, 1])
+    """
+
+    assert isinstance(data_parallel, DataParallel)
+
+    old_replicate = data_parallel.replicate
+
+    @functools.wraps(old_replicate)
+    def new_replicate(module, device_ids):
+        modules = old_replicate(module, device_ids)
+        execute_replication_callbacks(modules)
+        return modules
+
+    data_parallel.replicate = new_replicate
