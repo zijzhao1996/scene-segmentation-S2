@@ -1,1 +1,3 @@
-from .deeplabv3_resnet101 import createDeepLabv3
+from .deeplabv3_resnet50 import deeplabv3_resnet50
+from .deeplabv3_mobilenet_v3_large import deeplabv3_mobilenet_v3_large
+from .lraspp_mobilenet_v3_large import lraspp_mobilenet_v3_large

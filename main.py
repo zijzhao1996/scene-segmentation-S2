@@ -19,7 +19,7 @@ from torchvision import models
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from scene_seg.dataset import TrainDataset
-from scene_seg.models import createDeepLabv3
+from scene_seg.models import deeplabv3_resnet50, deeplabv3_mobilenet_v3_large, lraspp_mobilenet_v3_large
 from scene_seg.utils import AverageMeter, parse_devices, user_scattered_collate, UserScatteredDataParallel, patch_replication_callback
 
 
@@ -44,7 +44,7 @@ def checkpoint(model, history, epoch):
         '{}/model_epoch_{}.pth'.format(DIR, epoch))
     
 
-def train(segmentation_module, iterator, optimizer, scheduler, criterion, history, epoch):
+def train(segmentation_module, iterator, optimizer, criterion, history, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     ave_total_loss = AverageMeter()
@@ -76,7 +76,7 @@ def train(segmentation_module, iterator, optimizer, scheduler, criterion, histor
         # Backward
         loss.backward()
         optimizer.step()
-        scheduler.step()
+#         scheduler.step()
 
         # measure elapsed time
         batch_time.update(time.time() - tic)
@@ -105,24 +105,30 @@ def train(segmentation_module, iterator, optimizer, scheduler, criterion, histor
             writer.add_scalar('training accuracy',
                 ave_acc.average(),
                 cur_iter)
-#         break
 
 
 
-def main(gpus, start_epoch):
+def main(gpus, start_epoch, model):
     # build model
     # start from checkpoint
     assert start_epoch >= 0, "Invalid start epoch."
     # start from scratch
     if start_epoch == 0:
-        segmentation_module = createDeepLabv3(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
+        if model == 'deeplabv3_resnet50':    
+            segmentation_module = deeplabv3_resnet50(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
+        elif model == 'deeplabv3_mobilenet_v3_large':
+            segmentation_module = deeplabv3_mobilenet_v3_large(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
+        elif model == 'lraspp_mobilenet_v3_large':
+            segmentation_module = lraspp_mobilenet_v3_large(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
+        else:
+            raise NameError
     else:
         path = os.path.join(
             DIR, 'model_epoch_{}.pth'.format(start_epoch))
         print('Load checkpoint model {}'.format(start_epoch))
         print(path)
         assert os.path.exists(path), "checkpoint does not exitst!"
-        model = createDeepLabv3(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
+        model = deeplabv3_resnet50(outputchannels=150, keep_feature_extract=False, use_pretrained=True)
         model.load_state_dict(torch.load(path))
         segmentation_module = model
         
@@ -153,17 +159,17 @@ def main(gpus, start_epoch):
     # create loader iterator
     iterator_train = iter(loader_train)
 
-    # load nets into gpu
-    if len(gpus) > 1:
-        segmentation_module = UserScatteredDataParallel(
-            segmentation_module,
-            device_ids=gpus)
-        # For sync bn
-        patch_replication_callback(segmentation_module)
+#     # load nets into gpu
+#     if len(gpus) > 1:
+#         segmentation_module = UserScatteredDataParallel(
+#             segmentation_module,
+#             device_ids=gpus)
+#         # For sync bn
+#         patch_replication_callback(segmentation_module)
 
     # Set up optimizer
-    optimizer = torch.optim.Adam(segmentation_module.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = MultiStepLR(optimizer, milestones=[5, 10, 15, 20], gamma=0.9)
+    optimizer = torch.optim.Adam(segmentation_module.parameters(), lr=1e-4, weight_decay=1e-4)
+#     scheduler = MultiStepLR(optimizer, milestones=[5, 10, 15, 20], gamma=1)
     criterion = nn.CrossEntropyLoss(ignore_index=-1)
     segmentation_module.cuda()
 
@@ -172,7 +178,7 @@ def main(gpus, start_epoch):
 
     for epoch in range(start_epoch, num_epoch):
         print('============= Epoch {} ============='.format(epoch))
-        train(segmentation_module, iterator_train, optimizer, scheduler, criterion, history, epoch+1)
+        train(segmentation_module, iterator_train, optimizer, criterion, history, epoch+1)
         print('============== already train ==============')
         # checkpointing
         checkpoint(segmentation_module, history, epoch+1)
@@ -216,13 +222,24 @@ development.
     )
     parser.add_argument(
         "--gpus",
-        default="0-3",
+        default="0",
         help="gpus to use, e.g. 0-3 or 0,1,2,3"
     )
     parser.add_argument(
         "--dir",
         default="./ckpt/deeplabv3_resnet101",
         help="folder to save ckpt"
+    )
+    parser.add_argument(
+        "--start_epoch",
+        default=0,
+        type=int,
+        help="start epoch to train the models"
+    )
+    parser.add_argument(
+        "--model",
+        default="deeplabv3_resnet50",
+        help="which models to train"
     )
     args = parser.parse_args()
 
@@ -231,10 +248,11 @@ development.
     gpus = [x.replace('gpu', '') for x in gpus]
     gpus = [int(x) for x in gpus]
     num_gpus = len(gpus)
-    num_epoch = 20
-    start_epoch = 0
+    num_epoch = 10
+    start_epoch = args.start_epoch
     DIR = args.dir
     if not os.path.isdir(DIR):
         os.makedirs(DIR)
-    main(gpus, start_epoch)
+    model = args.model
+    main(gpus, start_epoch, model)
 

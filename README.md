@@ -38,6 +38,7 @@
       <a href="#getting-started">Getting Started</a>
     </li>
     <li><a href="#usage">Usage</a></li>
+    <li><a href="#video segmentation">Usage</a></li>
     <li><a href="#outputs">Output demo</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -90,6 +91,11 @@ For inference, please check the inference demo noteook.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+
+<!-- OUTPUTS DeMO -->
+## Video segmentation
+![gif](./images/video_seg "Video segmentation")
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- OUTPUTS DeMO -->
 ## Outputs
