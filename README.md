@@ -5,23 +5,23 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
- <a href="https://github.com/zijzhao1996">
-    <img src="images/logo.png" alt="Logo" width="640" height="240">
+ <a href="https://github.com/zijzhao1996/scene-segmentation">
+    <img src="images/logo.jpg" alt="Logo" width="640" height="240">
   </a>
 
 <h3 align="center">Scene Segmentation (S2)</h3>
 
   <p align="center">
-    Transfer Learning for Scene Segmentation using PyTorch DeepLab v3
+    Transfer Learning for Scene Segmentation in SceneParse150 Benchmark  
     <br />
-    <a href="https://github.com/zijzhao1996/README.md"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/zijzhao1996/scene-segmentation"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/zijzhao1996/">View Demo</a>
+    <a href="https://github.com/zijzhao1996/scene-segmentation">View Demo</a>
     ·
-    <a href="https://github.com/zijzhao1996/issues">Report Bug</a>
+    <a href="https://github.com/zijzhao1996/scene-segmentation">Report Bug</a>
     ·
-    <a href="https://github.com/zijzhao1996/issues">Request Feature</a>
+    <a href="https://github.com/zijzhao1996/scene-segmentation">Request Feature</a>
   </p>
 </div>
 
@@ -49,10 +49,15 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
+Welcome to use Scene-Seg (S2)! This is a PyTorch implementation of semantic scene segmentation models on MIT SceneParse150 benchmark dataset (http://sceneparsing.csail.mit.edu/). This tool can be used for both image and video scence segmenation. This tool is also the main part of MIT 6.869 project, which is under active development.
 
-Welcome to use Scene-Seg (S2)! This is a PyTorch implementation of semantic segmentation models on MIT ADE20K scene parsing dataset (http://sceneparsing.csail.mit.edu/). Developing this tool is also the main part of MIT 6.869 project, this tool is under active development.
+Currently, we provide three model options:
+- deeplabv3_resnet50
+- deeplabv3_mobilenet_v3_large
+- lraspp_mobilenet_v3_large
 
-The current model we offer is DeepLabV3 model with a ResNet-101 backbone. We use the pretrained the model from the torchvision module, and finetune on ADE20K. In the future, we plan to include more efficient models. 
+Below is a segmentation video predicted by our deeplabv3_resnet50 model, which is a common situation used by self-driving car. 
+![gif](./images/video_seg.gif "Video segmentation")
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -63,7 +68,7 @@ The current model we offer is DeepLabV3 model with a ResNet-101 backbone. We use
 
 The code is developed under the following configurations.
 
-Hardware: >=4 GPUs for training, >=1 GPU for testing
+Hardware: >=1 GPUs for training, >=1 GPU for testing
 Software: Ubuntu 16.04.3 LTS, CUDA>=8.0, Python>=3.5, PyTorch>=0.4.0
 Dependencies: numpy, scipy, opencv
 
@@ -91,11 +96,6 @@ For inference, please check the inference demo noteook.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-
-<!-- OUTPUTS DeMO -->
-## Video segmentation
-![gif](./images/video_seg.gif "Video segmentation")
-<p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- OUTPUTS DeMO -->
 ## Outputs
