@@ -94,7 +94,7 @@ For inference, please check the inference demo noteook.
 
 <!-- OUTPUTS DeMO -->
 ## Video segmentation
-![gif](./images/video_seg "Video segmentation")
+![gif](./images/video_seg.gif "Video segmentation")
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- OUTPUTS DeMO -->
