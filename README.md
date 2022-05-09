@@ -49,15 +49,24 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-Welcome to use Scene-Seg (S2)! This is a PyTorch implementation of semantic scene segmentation models on MIT SceneParse150 benchmark dataset (http://sceneparsing.csail.mit.edu/). This tool can be used for both image and video scence segmenation. This tool is also the main part of MIT 6.869 project, which is under active development.
+Welcome to use Scene-Seg (S2)! This is a PyTorch implementation of semantic scene segmentation models on the [MIT SceneParse150 benchmark dataset](http://sceneparsing.csail.mit.edu/). This tool can be used for both image and video scene segmentation. This tool is also the main part of the MIT 6.869 project, which is under active development.
 
 Currently, we provide three model options:
 - deeplabv3_resnet50
 - deeplabv3_mobilenet_v3_large
 - lraspp_mobilenet_v3_large
 
-Below is a segmentation video predicted by our deeplabv3_resnet50 model, which is a common situation used by self-driving car. 
+Below is a segmentation video predicted by our deeplabv3_resnet50 model, a common situation used by self-driving cars. 
+
 ![gif](./images/video_seg.gif "Video segmentation")
+
+We provide the following features:
+- A full ML pipeline of training and inference with PyTroch.
+- Image/video segmentation.
+- Finetune/Feature extraction of 3 models.
+- Dynamic scale of inputs across GPUs.
+- Start training from existing checkpoints.
+- Tensorboard with accuracy and loss monitoring.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -66,14 +75,15 @@ Below is a segmentation video predicted by our deeplabv3_resnet50 model, which i
 <!-- GETTING STARTED -->
 ## Getting Started
 
-The code is developed under the following configurations.
+The code is developed under the following hardward and softward.
 
-Hardware: >=1 GPUs for training, >=1 GPU for testing
-Software: Ubuntu 16.04.3 LTS, CUDA>=8.0, Python>=3.5, PyTorch>=0.4.0
+Hardware: 
+- Google Colab with NVIDIA P100 GPU. 
+- [Satori](https://mit-satori.github.io/), a GPU dense, high-performance Power 9 system developed as a collaboration between MIT and IBM. The GPU we use is NVIDIA Tesla V100.
+Software: CUDA>=8.0, Python>=3.5, PyTorch>=0.4.0
 Dependencies: numpy, scipy, opencv
 
 Please make sure you computing environment has at least one available GPU.
-
 
 <!-- USAGE EXAMPLES -->
 ## Usage
@@ -88,12 +98,19 @@ chmod +x download_dataset.sh
 For training, please excute following commands:
 
 ```python
-python main.py --gpus 0,1,2,3
+python train.py  --gpus 0 --dir ./ckpt/$CHEKPOINT --start_epoch 0 --model $MODELNAME
 ```
 
-For inference, please check the inference demo noteook.
+For evaluation on the validation set (2,000 images) of SceneParse150 benchmark dataset, please excute following commands:
 
+```python
+python evaluation.py  --gpus 0 ./ckpt/$CHEKPOINT --model $MODELNAME
+```
 
+For video segmentation, please excute following commands:
+```python
+python video_seg.py  --gpus 0 ./ckpt/$CHEKPOINT --model $MODELNAME
+```
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
@@ -116,17 +133,18 @@ You can check the time, pixel-wise accuracy, and training loss for each 20 itera
 
 ###############################################################
 Welcome to use Scene-Seg (S2)! This is a PyTorch implementation 
-of semantic segmentation models on MIT ADE20K scene parsing 
-dataset (http://sceneparsing.csail.mit.edu/). 
+of semantic scene segmentation models on the MIT SceneParse150 
+benchmark dataset. This tool can be used for both image and 
+video scene segmentation. This tool is also the main part of 
+the MIT 6.869 project, which is under active development.
 
-Developing this tool is also the main part of MIT 6.869 project, 
-which is under active development.
+Currently, we provide three model options:
+- deeplabv3_resnet50
+- deeplabv3_mobilenet_v3_large
+- lraspp_mobilenet_v3_large
 
--- Author: Zijie Zhao
--- Date: Apr 26 2022
-
-            
-Current use model: DeepLabV3 model with a ResNet-101 backbone.
+Now you are entering the [training] mode.      
+Current use model: DeepLabV3 model with a ResNet-50 backbone.
 2022-04-26 18:05:02.704803: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudart.so.10.1
 # samples: 20210
 1 Epoch = 5000 iters
@@ -138,6 +156,7 @@ Epoch: [1][80/5000], Avg Train Time: 0.55, Avg Data time: 0.00, Accuracy: 22.58,
 Epoch: [1][100/5000], Avg Train Time: 0.55, Avg Data time: 0.00, Accuracy: 23.51, Loss: 3.370975
 Epoch: [1][120/5000], Avg Train Time: 0.55, Avg Data time: 0.00, Accuracy: 24.47, Loss: 3.315614
 Epoch: [1][140/5000], Avg Train Time: 0.55, Avg Data time: 0.00, Accuracy: 25.27, Loss: 3.263218
+......
 ```
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -154,6 +173,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 <!-- CONTACT -->
 ## Contact
+For any question, feel free to contact:
 
 Zijie Zhao - zijiezha@mit.edu
 
